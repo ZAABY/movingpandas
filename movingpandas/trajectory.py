@@ -1050,6 +1050,57 @@ class Trajectory:
         return measure_length(self.df.geometry, self.is_latlon, conversion)
 
     @requires_geometry
+    def get_straightness_index(self):
+        """
+        Return the straightness index of the trajectory.
+
+        The straightness index is the ratio of the straight-line distance between
+        the start and end locations to the travelled length of the trajectory. It
+        is dimensionless: 1 means a perfectly straight path and values towards 0
+        mean an increasingly winding path (0 for a closed loop). For geographic
+        CRS, both distances are computed on the ellipsoid, consistent with
+        :meth:`get_length`.
+
+        Returns
+        -------
+        float
+            Straightness index in the range [0, 1]. Trajectories without any
+            movement (length 0) return 1.0 by convention.
+        """
+        length = self.get_length()
+        if length == 0:
+            return 1.0
+        conversion = get_conversion(UNITS(), self.crs_units)
+        chord = measure_distance(
+            self.get_start_location(),
+            self.get_end_location(),
+            self.is_latlon,
+            conversion,
+        )
+        return min(chord / length, 1.0)
+
+    @requires_geometry
+    def get_sinuosity(self):
+        """
+        Return the sinuosity of the trajectory.
+
+        Sinuosity is the inverse of the straightness index: the travelled length
+        divided by the straight-line distance between start and end location. A
+        value of 1 is a straight path, larger values are more winding. Closed
+        loops (start equals end) have infinite sinuosity.
+
+        Returns
+        -------
+        float
+            Sinuosity, >= 1 (``inf`` if start and end location coincide and the
+            trajectory has moved).
+        """
+        index = self.get_straightness_index()
+        if index == 0:
+            return float("inf")
+        return 1.0 / index
+
+    @requires_geometry
     def is_long_enough(self, min_length, units=UNITS()):
         """
         Return True as soon as the accumulated length exceeds min_length.
