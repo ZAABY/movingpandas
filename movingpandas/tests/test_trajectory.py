@@ -776,6 +776,41 @@ class TestTrajectory:
         assert traj.get_length() == 5
         # assert len(traj) == pytest.approx(5, 1)
 
+    def test_straightness_index_straight_line(self):
+        traj = make_traj([Node(0, 0), Node(3, 0, day=2), Node(6, 0, day=3)])
+        assert traj.get_straightness_index() == pytest.approx(1.0)
+        assert traj.get_sinuosity() == pytest.approx(1.0)
+
+    def test_straightness_index_detour(self):
+        # path 0,0 -> 3,4 -> 6,0 : length 10, chord 6
+        traj = make_traj([Node(0, 0), Node(3, 4, day=2), Node(6, 0, day=3)])
+        assert traj.get_straightness_index() == pytest.approx(0.6)
+        assert traj.get_sinuosity() == pytest.approx(1 / 0.6)
+
+    def test_straightness_index_closed_loop(self):
+        traj = make_traj(
+            [Node(0, 0), Node(0, 5, day=2), Node(5, 5, day=3), Node(0, 0, day=4)]
+        )
+        assert traj.get_straightness_index() == pytest.approx(0.0)
+        assert traj.get_sinuosity() == float("inf")
+
+    def test_straightness_index_stationary(self):
+        traj = make_traj([Node(1, 1), Node(1, 1, day=2)])
+        assert traj.get_straightness_index() == 1.0
+        assert traj.get_sinuosity() == 1.0
+
+    def test_straightness_index_latlon(self):
+        traj = make_traj([Node(0, 0), Node(3, 3, day=2), Node(6, 0, day=3)], CRS_LATLON)
+        result = traj.get_straightness_index()
+        assert 0.5 < result < 0.8
+        assert traj.get_sinuosity() == pytest.approx(1 / result)
+
+    def test_straightness_index_does_not_alter_df(self):
+        traj = make_traj([Node(0, 0), Node(3, 4, day=2), Node(6, 0, day=3)])
+        before = traj.df.copy()
+        traj.get_straightness_index()
+        assert traj.df.equals(before)
+
     def test_get_length_spherical(self):
         traj = make_traj([Node(0, 1), Node(6, 0, day=2)], CRS_LATLON)
         result = traj.get_length() / 1000
